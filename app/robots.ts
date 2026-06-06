@@ -1,7 +1,5 @@
 import { MetadataRoute } from 'next';
-
-const DOMAIN = 'https://omm-ai.vercel.app';
-
+const DOMAIN = 'https://omm-ai-portfolio.vercel.app';
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {

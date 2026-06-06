@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://omm-ai.vercel.app"),
+  metadataBase: new URL("https://omm-ai-portfolio.vercel.app"),
   title: "Omm Prakash Sahoo | AI & Web Developer | OMM//AI",
   description: "AI & Web Developer building intelligent systems, modern web applications, and immersive digital experiences. Explore OMM//AI projects and innovations.",
   keywords: [
@@ -26,11 +26,11 @@ export const metadata: Metadata = {
     "Full Stack Developer", "Next.js Developer", "React Developer", 
     "AI Engineer", "Portfolio Website", "3D Portfolio", "Artificial Intelligence Developer"
   ],
-  authors: [{ name: "Omm Prakash Sahoo", url: "https://omm-ai.vercel.app" }],
+  authors: [{ name: "Omm Prakash Sahoo", url: "https://omm-ai-portfolio.vercel.app" }],
   creator: "Omm Prakash Sahoo",
   openGraph: {
     type: "website",
-    url: "https://omm-ai.vercel.app",
+    url: "https://omm-ai-portfolio.vercel.app",
     title: "Omm Prakash Sahoo | AI & Web Developer | OMM//AI",
     description: "AI & Web Developer building intelligent systems, modern web applications, and immersive digital experiences. Explore OMM//AI projects and innovations.",
     siteName: "OMM//AI",
@@ -53,7 +53,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "Person",
   "name": "Omm Prakash Sahoo",
-  "url": "https://omm-ai.vercel.app",
+  "url": "https://omm-ai-portfolio.vercel.app",
   "jobTitle": "AI & Web Developer",
   "email": "ommprakashs648@gmail.com",
   "sameAs": [
