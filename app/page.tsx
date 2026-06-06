@@ -1,9 +1,13 @@
+import dynamic from "next/dynamic";
 import AICore from "@/components/AICore";
-import AboutSection from "@/components/AboutSection";
-import MissionSection from "@/components/MissionSection";
-import SkillsSection from "@/components/SkillsSection";
-import BuildsSection from "@/components/BuildsSection";
-import ContactSection from "@/components/ContactSection";
+
+// Dynamically import below-the-fold components to reduce initial bundle size
+const AboutSection = dynamic(() => import("@/components/AboutSection"));
+const MissionSection = dynamic(() => import("@/components/MissionSection"));
+const SkillsSection = dynamic(() => import("@/components/SkillsSection"));
+const BuildsSection = dynamic(() => import("@/components/BuildsSection"));
+const ContactSection = dynamic(() => import("@/components/ContactSection"));
+const Footer = dynamic(() => import("@/components/Footer"));
 
 export default function Home() {
   return (
@@ -17,8 +21,8 @@ export default function Home() {
         {/* Tech grid overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
 
-        <div className="relative w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24 md:pt-20 md:pb-32">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center min-h-[70vh]">
+        <div className="relative w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 md:pt-20 md:pb-32">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-8 items-center min-h-[70vh]">
 
             {/* Left Side: Brand Content */}
             <div className="flex flex-col space-y-6 md:space-y-8 text-left z-10 animate-fade-in-up">
@@ -58,14 +62,14 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row gap-4 pt-2">
                 <a
                   href="#builds"
-                  className="group relative flex h-12 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 px-8 font-semibold text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all hover:shadow-[0_0_30px_rgba(34,211,238,0.5)] hover:scale-[1.02] active:scale-[0.98]"
+                  className="group relative flex h-12 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 px-8 font-semibold text-white shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all hover:shadow-[0_0_30px_rgba(34,211,238,0.5)] hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                 >
                   <span className="relative z-10">Explore My Work</span>
                   <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-transform duration-500 group-hover:translate-x-0" />
                 </a>
                 <a
                   href="#contact"
-                  className="flex h-12 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/40 backdrop-blur-md px-8 font-semibold text-zinc-300 transition-all hover:bg-zinc-900/60 hover:text-white hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex h-12 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950/40 backdrop-blur-md px-8 font-semibold text-zinc-300 transition-all hover:bg-zinc-900/60 hover:text-white hover:border-zinc-700 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
                 >
                   Contact Me
                 </a>
@@ -98,6 +102,9 @@ export default function Home() {
 
       {/* ── Contact Section ─────────────────────────────────────────── */}
       <ContactSection />
+
+      {/* ── Footer ──────────────────────────────────────────────────── */}
+      <Footer />
     </>
   );
 }

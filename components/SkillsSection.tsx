@@ -212,7 +212,7 @@ function CapabilityPanel({ cat, delay }: { cat: typeof categories[0]; delay: num
           style={{ background: `linear-gradient(to right, transparent, ${cat.accent}, transparent)` }}
         />
 
-        <div className="relative p-6">
+        <div className="relative p-4 sm:p-6">
           {/* ── Header row ── */}
           <div className="flex items-start justify-between mb-4">
             <div className="space-y-1">
@@ -397,9 +397,9 @@ function SystemInfoBlock() {
           <span className="ml-3 text-[10px] text-zinc-500 tracking-widest">OMM//AI — system.info</span>
         </div>
 
-        <div className="px-5 py-4 space-y-1.5 text-[11px]">
-          <div className="text-zinc-600">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
-          <div className="flex gap-4">
+        <div className="px-3 sm:px-5 py-3 sm:py-4 space-y-1.5 text-[10px] sm:text-[11px]">
+          <div className="text-zinc-600 overflow-hidden text-ellipsis whitespace-nowrap">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+          <div className="flex gap-2 sm:gap-4">
             <span className="text-zinc-600 w-32 shrink-0">SYSTEM STATUS</span>
             <span className="text-zinc-500">:</span>
             <span className="text-cyan-400">ONLINE</span>
@@ -419,7 +419,7 @@ function SystemInfoBlock() {
             <span className="text-zinc-500">:</span>
             <span className="text-cyan-300">OMM//AI v1.0</span>
           </div>
-          <div className="text-zinc-600">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+          <div className="text-zinc-600 overflow-hidden text-ellipsis whitespace-nowrap">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
           <div className="flex items-center gap-1 pt-0.5">
             <span className="text-cyan-500">▸</span>
             <span className="text-zinc-500">awaiting next command</span>

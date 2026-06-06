@@ -36,7 +36,7 @@ function InnerCore({ hovered }: { hovered: boolean }) {
 
       {/* Mid energized shell */}
       <mesh ref={innerRef}>
-        <sphereGeometry args={[0.55, 64, 64]} />
+        <sphereGeometry args={[0.55, 48, 48]} />
         <MeshDistortMaterial
           ref={matRef}
           color="#050b1a"
@@ -108,7 +108,7 @@ function OrbitalRing({ radius, tubeRadius, color, speed, initialRotation, nodeCo
       <group ref={groupRef}>
         {/* Ring tube */}
         <mesh>
-          <torusGeometry args={[radius, tubeRadius, 20, 128]} />
+          <torusGeometry args={[radius, tubeRadius, 20, 64]} />
           <meshStandardMaterial
             color={color}
             emissive={color}
@@ -173,8 +173,8 @@ function NeuralParticles() {
   const ref = useRef<THREE.Points>(null!);
   const innerRef = useRef<THREE.Points>(null!);
 
-  const count  = 400;
-  const iCount = 60;
+  const count  = 300;
+  const iCount = 50;
 
   const [outerPositions, outerColors, innerPositions, innerColors] = useMemo(() => {
     const pos   = new Float32Array(count  * 3);
@@ -354,7 +354,7 @@ function AIScene() {
 // ─── Canvas export ─────────────────────────────────────────────────────────────
 export default function AICoreCanvas() {
   return (
-    <div className="w-full h-[420px] md:h-[520px] cursor-grab active:cursor-grabbing select-none">
+    <div className="w-full h-[320px] sm:h-[420px] md:h-[520px] cursor-grab active:cursor-grabbing select-none flex items-center justify-center">
       <Canvas
         camera={{ position: [0, 0, 6.5], fov: 42 }}
         dpr={[1, 2]}

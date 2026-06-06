@@ -21,25 +21,7 @@ const timelineItems = [
   { year: '2026', event: 'Expanding systems & pushing boundaries',code: 'SCALE' },
 ];
 
-function LiveClock() {
-  const [time, setTime] = useState('--:--:--');
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      setTime(
-        [
-          String(now.getHours()).padStart(2, '0'),
-          String(now.getMinutes()).padStart(2, '0'),
-          String(now.getSeconds()).padStart(2, '0'),
-        ].join(':')
-      );
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-  return <span className="text-cyan-400 tabular-nums">{time}</span>;
-}
+
 
 export default function AboutSection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -251,43 +233,7 @@ export default function AboutSection() {
           {/* ── Right Panel: Status & Learning (2/5 width) ───────── */}
           <div className="lg:col-span-2 space-y-4">
 
-            {/* Live System Status */}
-            <div className="reveal opacity-0 translate-x-6 transition-all duration-700 ease-out delay-150">
-              <div className="relative overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md">
-                <div className="px-5 py-3 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-                  <span className="text-[9px] font-mono tracking-[0.4em] text-zinc-500">SYSTEM.STATUS</span>
-                </div>
-                <div className="p-5 font-mono space-y-3 text-[11px]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-600">SYS.CLOCK</span>
-                    <LiveClock />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-600">NETWORK</span>
-                    <span className="text-emerald-400">STABLE</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-600">AI_CORE</span>
-                    <span className="text-cyan-400">ACTIVE</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-600">BUILD_VER</span>
-                    <span className="text-blue-400">2026.06</span>
-                  </div>
-                  <div className="border-t border-zinc-900 pt-3 flex items-center justify-between">
-                    <span className="text-zinc-600">STATUS</span>
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500" />
-                      </span>
-                      <span className="text-cyan-400 font-bold">ONLINE</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+
 
             {/* Classification Tags */}
             <div className="reveal opacity-0 translate-x-6 transition-all duration-700 ease-out delay-200">

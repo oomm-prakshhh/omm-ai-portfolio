@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 const AICoreCanvas = dynamic(() => import('./AICoreCanvas'), {
   ssr: false,
   loading: () => (
-    <div className="relative flex items-center justify-center w-full h-[400px] md:h-[500px]">
+    <div className="relative flex items-center justify-center w-full h-[320px] sm:h-[420px] md:h-[500px]">
       {/* Background glow layers */}
       <div className="absolute w-72 h-72 rounded-full bg-blue-600/5 blur-[80px] animate-pulse" />
       <div className="absolute w-60 h-60 rounded-full bg-cyan-400/5 blur-[60px] animate-pulse [animation-delay:1s]" />

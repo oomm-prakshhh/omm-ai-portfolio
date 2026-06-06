@@ -60,17 +60,29 @@ body {
 
 /* ── Custom Animations ────────────────────────────────────── */
 @keyframes datastream {
-  0% { left: -33%; }
-  100% { left: 100%; }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
 }
 
 @keyframes scanline {
-  0% { top: 0%; }
-  50% { top: 100%; }
-  100% { top: 0%; }
+  0% { transform: translateY(0%); }
+  50% { transform: translateY(100%); }
+  100% { transform: translateY(0%); }
 }
 
 @keyframes gridmove {
   0% { transform: translateY(0); }
   100% { transform: translateY(40px); }
+}
+
+/* ── Motion Accessibility ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
