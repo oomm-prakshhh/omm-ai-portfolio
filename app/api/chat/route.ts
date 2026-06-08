@@ -78,24 +78,16 @@ interface RequestBody {
   history?: ChatMessage[];
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function isValidGeminiKey(key: string): boolean {
-  // Real Gemini API keys start with "AIza" and are ~39 chars
-  return key.startsWith('AIza') && key.length > 20;
-}
-
+// ── Error classifier ──────────────────────────────────────────────────────────
 function classifyGeminiError(err: unknown): { message: string; status: number } {
   const msg = err instanceof Error ? err.message : String(err);
   const lower = msg.toLowerCase();
 
   if (lower.includes('api_key_invalid') || lower.includes('api key not valid') || lower.includes('invalid api key')) {
-    return { message: 'Invalid Gemini API key. Check GEMINI_API_KEY in your environment variables.', status: 401 };
+    return { message: 'Invalid Gemini API key. Verify GEMINI_API_KEY in your Vercel environment variables.', status: 401 };
   }
   if (lower.includes('quota') || lower.includes('rate limit') || lower.includes('resource_exhausted')) {
     return { message: 'Gemini API quota exceeded. Please try again later.', status: 429 };
-  }
-  if (lower.includes('not found') || lower.includes('model') || lower.includes('404')) {
-    return { message: 'Gemini model not found. The model name may be invalid or unavailable in your region.', status: 404 };
   }
   if (lower.includes('permission') || lower.includes('forbidden') || lower.includes('403')) {
     return { message: 'Gemini API access denied. Check your API key permissions.', status: 403 };
@@ -103,36 +95,25 @@ function classifyGeminiError(err: unknown): { message: string; status: number } 
   if (lower.includes('network') || lower.includes('fetch') || lower.includes('enotfound')) {
     return { message: 'Network error reaching Gemini API. Check your connection.', status: 503 };
   }
-  // Return actual message for any other error
+  // Surface the real Gemini error message for any other case
   return { message: `Gemini error: ${msg}`, status: 503 };
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // ── 1. Validate API key ────────────────────────────────────────────────────
+
+  // Read API key exclusively from environment — no fallbacks, no hardcoded values
   const apiKey = process.env.GEMINI_API_KEY;
 
-  console.log('[OMM//AI] API route called');
-  console.log('[OMM//AI] Key present:', !!apiKey);
-  console.log('[OMM//AI] Key valid format:', apiKey ? isValidGeminiKey(apiKey) : false);
-
-  if (!apiKey) {
+  if (!apiKey || apiKey.trim() === '') {
     console.error('[OMM//AI] GEMINI_API_KEY is not set in environment variables.');
     return NextResponse.json(
-      { error: 'GEMINI_API_KEY is not set. Add it to .env.local for local dev, or to Vercel Environment Variables for production.' },
+      { error: 'GEMINI_API_KEY is not configured. Add it to Vercel Environment Variables.' },
       { status: 500 }
     );
   }
 
-  if (!isValidGeminiKey(apiKey)) {
-    console.error('[OMM//AI] GEMINI_API_KEY looks like a placeholder:', apiKey.substring(0, 12) + '...');
-    return NextResponse.json(
-      { error: 'GEMINI_API_KEY appears to be a placeholder. Replace it with your real key from aistudio.google.com/apikey' },
-      { status: 500 }
-    );
-  }
-
-  // ── 2. Validate request body ───────────────────────────────────────────────
+  // Parse request body
   let body: RequestBody;
   try {
     body = await req.json();
@@ -143,28 +124,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const { message, history = [] } = body;
 
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
-    return NextResponse.json({ error: 'message field is required and must be a non-empty string.' }, { status: 400 });
+    return NextResponse.json({ error: 'message field is required.' }, { status: 400 });
   }
 
   if (message.trim().length > 1000) {
     return NextResponse.json({ error: 'Message too long. Maximum 1000 characters.' }, { status: 400 });
   }
 
-  // ── 3. Call Gemini ─────────────────────────────────────────────────────────
+  // Call Gemini — pass the key as-is, let the SDK handle auth
   try {
-    console.log('[OMM//AI] Initialising Gemini SDK...');
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const genAI = new GoogleGenerativeAI(apiKey.trim());
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
       systemInstruction: SYSTEM_PROMPT,
     });
 
-    console.log('[OMM//AI] Model: gemini-1.5-flash');
-    console.log('[OMM//AI] History turns:', history.length);
-    console.log('[OMM//AI] User message:', message.trim().substring(0, 80));
-
-    // Build typed history for multi-turn context
+    // Build multi-turn history
     const formattedHistory = history.map((msg: ChatMessage) => ({
       role: msg.role,
       parts: [{ text: msg.parts }],
@@ -178,17 +154,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       },
     });
 
-    console.log('[OMM//AI] Sending message to Gemini...');
     const result = await chat.sendMessage(message.trim());
     const response = result.response.text();
 
-    console.log('[OMM//AI] Response received, length:', response.length);
     return NextResponse.json({ response }, { status: 200 });
 
   } catch (err: unknown) {
     const { message: errMsg, status } = classifyGeminiError(err);
     console.error('[OMM//AI] Gemini API error:', err instanceof Error ? err.message : err);
-    console.error('[OMM//AI] Classified error:', errMsg);
     return NextResponse.json({ error: errMsg }, { status });
   }
 }
