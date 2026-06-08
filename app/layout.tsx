@@ -83,6 +83,9 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        {/* Blocking pre-hydration script — hides body content if boot should run.
+            Runs synchronously before React, preventing any flash of portfolio content. */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(!sessionStorage.getItem('omm-ai-boot-v2')&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.setAttribute('data-booting','1');}}catch(e){}})();` }} />
       </head>
       <body className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-blue-500/30 selection:text-blue-200 relative">
         <BootSequence />

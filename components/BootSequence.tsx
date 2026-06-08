@@ -141,11 +141,27 @@ export default function BootSequence() {
 
   // ── Client-side gate ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (!BOOT_SEQUENCE_ENABLED) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!BOOT_SEQUENCE_ENABLED) {
+      // Boot disabled — immediately clear the gate so portfolio shows
+      document.documentElement.removeAttribute('data-booting');
+      return;
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // Reduced motion — skip boot, clear gate
+      document.documentElement.removeAttribute('data-booting');
+      return;
+    }
     try {
-      if (!sessionStorage.getItem(SESSION_KEY)) setShouldRun(true);
-    } catch { /* ignore */ }
+      if (!sessionStorage.getItem(SESSION_KEY)) {
+        setShouldRun(true);
+      } else {
+        // Already booted this session — clear gate immediately
+        document.documentElement.removeAttribute('data-booting');
+      }
+    } catch {
+      // sessionStorage unavailable — clear gate and skip boot
+      document.documentElement.removeAttribute('data-booting');
+    }
   }, []);
 
   // ── Sequence orchestrator ──────────────────────────────────────────────────
@@ -191,10 +207,15 @@ export default function BootSequence() {
       setShowReady(true);
       await delay(1100);
 
-      // Fade out
+      // Start fade: remove data-booting so portfolio reveals simultaneously,
+      // add boot-complete for the smooth fade-in animation
       setFadeOut(true);
+      document.documentElement.removeAttribute('data-booting');
+      document.body.classList.add('boot-complete');
       await delay(900);
       setHidden(true);
+      // Clean up boot-complete class after reveal animation finishes
+      setTimeout(() => document.body.classList.remove('boot-complete'), 900);
       try { sessionStorage.setItem(SESSION_KEY, 'true'); } catch { /* ignore */ }
     };
 
@@ -211,7 +232,7 @@ export default function BootSequence() {
 
   return (
     <>
-      {/* Blink keyframe injected once */}
+      {/* Keyframes injected once into the document */}
       <style>{`
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes sweepline {
@@ -229,10 +250,11 @@ export default function BootSequence() {
       `}</style>
 
       <div
+        id="boot-overlay"
         role="status"
         aria-label="OMM//AI system booting"
         aria-live="polite"
-        className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black
+        className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-black
           transition-opacity ease-in-out ${fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
         style={{
           transitionDuration: fadeOut ? '900ms' : '0ms',
