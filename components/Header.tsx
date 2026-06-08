@@ -40,6 +40,7 @@ export default function Header() {
           <Link href="#builds"       className="hover:text-white transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">Builds</Link>
           <Link href="#mission"      className="hover:text-white transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">Mission</Link>
           <Link href="#capabilities" className="hover:text-white transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">Capabilities</Link>
+          <Link href="#terminal"     className="hover:text-white transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm text-cyan-500/80 hover:text-cyan-400">Terminal</Link>
           <Link href="#about"        className="hover:text-white transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">Profile</Link>
           <Link href="#contact"      className="hover:text-white transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">Contact</Link>
         </nav>
@@ -80,12 +81,16 @@ export default function Header() {
             <span className="text-xs font-mono text-cyan-500 group-hover:opacity-100 opacity-0 transition-opacity">03</span>
             Capabilities
           </Link>
-          <Link href="#about" onClick={closeMenu} className="group flex items-center gap-4 text-zinc-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">
+          <Link href="#terminal" onClick={closeMenu} className="group flex items-center gap-4 text-cyan-400 hover:text-cyan-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">
             <span className="text-xs font-mono text-cyan-500 group-hover:opacity-100 opacity-0 transition-opacity">04</span>
+            Terminal
+          </Link>
+          <Link href="#about" onClick={closeMenu} className="group flex items-center gap-4 text-zinc-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">
+            <span className="text-xs font-mono text-cyan-500 group-hover:opacity-100 opacity-0 transition-opacity">05</span>
             Profile
           </Link>
           <Link href="#contact" onClick={closeMenu} className="group flex items-center gap-4 text-zinc-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:rounded-sm">
-            <span className="text-xs font-mono text-cyan-500 group-hover:opacity-100 opacity-0 transition-opacity">05</span>
+            <span className="text-xs font-mono text-cyan-500 group-hover:opacity-100 opacity-0 transition-opacity">06</span>
             Contact
           </Link>
         </div>

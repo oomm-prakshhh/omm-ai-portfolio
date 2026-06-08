@@ -6,6 +6,7 @@ const AboutSection = dynamic(() => import("@/components/AboutSection"));
 const MissionSection = dynamic(() => import("@/components/MissionSection"));
 const SkillsSection = dynamic(() => import("@/components/SkillsSection"));
 const BuildsSection = dynamic(() => import("@/components/BuildsSection"));
+const TerminalSection = dynamic(() => import("@/components/TerminalSection"));
 const ContactSection = dynamic(() => import("@/components/ContactSection"));
 const Footer = dynamic(() => import("@/components/Footer"));
 
@@ -93,6 +94,9 @@ export default function Home() {
 
       {/* ── Skills Command Center ──────────────────────────────────── */}
       <SkillsSection />
+
+      {/* ── Terminal Interface ────────────────────────────────────── */}
+      <TerminalSection />
 
       {/* ── About Section ──────────────────────────────────────────── */}
       <div className="relative w-full bg-black overflow-hidden">
