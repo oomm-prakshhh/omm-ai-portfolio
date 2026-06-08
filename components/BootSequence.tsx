@@ -295,7 +295,7 @@ export default function BootSequence() {
                 filter: 'drop-shadow(0 0 24px rgba(34,211,238,0.45))',
               }}
             >
-              OMM&nbsp;<span style={{ WebkitTextFillColor: '#52525b', fontWeight: 300 }}>//</span>&nbsp;AI
+              {'OMM'}&nbsp;<span style={{ WebkitTextFillColor: '#52525b', fontWeight: 300 }}>{'//'}</span>&nbsp;{'AI'}
             </h1>
           </div>
 
