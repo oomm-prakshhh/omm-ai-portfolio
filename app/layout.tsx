@@ -6,6 +6,7 @@ import CursorGlow from "@/components/CursorGlow";
 import dynamic from "next/dynamic";
 
 const AIAssistant = dynamic(() => import("@/components/AIAssistant"));
+const BootSequence = dynamic(() => import("@/components/BootSequence"));
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -84,6 +85,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-blue-500/30 selection:text-blue-200 relative">
+        <BootSequence />
         <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[10000] focus:p-4 focus:bg-cyan-950 focus:text-cyan-400 focus:font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 rounded-br-lg transition-colors">
           Skip to main content
         </a>

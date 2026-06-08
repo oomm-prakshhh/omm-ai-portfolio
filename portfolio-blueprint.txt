@@ -1,0 +1,127 @@
+========================================================================
+                      OMM // AI PORTFOLIO
+              BLUEPRINT & DEVELOPMENT DOCUMENTATION
+========================================================================
+
+1. PROJECT OVERVIEW
+------------------------------------------------------------------------
+Project Name: OMM//AI Portfolio
+Developer: Omm Prakash Sahoo
+Goal: Create an ultra-premium, interactive, AI-themed portfolio featuring 
+3D elements, a conversational assistant UI, and top-tier SEO/Accessibility.
+
+2. TECHNOLOGY STACK & LANGUAGES USED
+------------------------------------------------------------------------
+• TypeScript / JavaScript
+  - Purpose: Core logic, component state management, and strict typing.
+  - Why: Prevents runtime errors and makes the codebase highly maintainable.
+
+• Next.js 16 (App Router Framework)
+  - Purpose: React framework for SSR (Server-Side Rendering), routing, 
+    and SEO management.
+  - Why: Provides maximum performance, automatic image optimization, and 
+    built-in Metadata APIs for social sharing cards.
+
+• React
+  - Purpose: UI Library.
+  - Why: Component-based architecture allows for reusable pieces like the 
+    AIAssistant and 3D Canvases.
+
+• Tailwind CSS
+  - Purpose: Styling and layout.
+  - Why: Utility-first CSS allows for rapid design iteration without leaving 
+    the TSX files. Perfect for dark mode, glassmorphism, and responsive grids.
+
+• Three.js & React Three Fiber (@react-three/fiber, @react-three/drei)
+  - Purpose: 3D rendering engine.
+  - Why: Used to create the interactive, rotating "AI Core" particle 
+    system in the hero section.
+
+• Lucide React
+  - Purpose: Iconography.
+  - Why: Clean, lightweight, scalable SVG icons for buttons and the terminal.
+
+
+3. CORE ARCHITECTURAL FEATURES
+------------------------------------------------------------------------
+• The 3D AI Core: 
+  A WebGL canvas component containing a central sphere, orbital rings, and 
+  a custom particle system that rotates and breathes using requestAnimationFrame.
+
+• AIAssistant Terminal: 
+  A custom React state machine simulating an AI chatbot. It uses timeouts 
+  to simulate "typing" effects, automatically scrolls to the newest message, 
+  and is fully keyboard accessible.
+
+• Motion Accessibility:
+  The global CSS strictly respects user OS "Reduce Motion" settings. All 
+  Three.js animations and CSS transitions gracefully degrade to static 
+  versions if required by the user's accessibility preferences.
+
+• SEO Engine:
+  Fully dynamic `layout.tsx` metadata with JSON-LD (Schema.org Person) 
+  injection, dynamic `sitemap.xml`, `robots.txt`, and Open Graph images.
+
+
+4. THE WORKFLOW BLUEPRINT (From Scratch to Deployment)
+------------------------------------------------------------------------
+
+PHASE 1: Foundation & Setup
+1. Scaffold Next.js: `npx create-next-app@latest portfolio --typescript --tailwind --app`
+2. Install Dependencies: Three.js, Lucide, Fiber, Drei.
+3. Global Styling: Configure Tailwind colors (Cyan/Blue focus) and setup 
+   base styles in `globals.css` (custom scrollbars, text selection).
+
+PHASE 2: Structural Architecture
+1. Layout Setup: Build `app/layout.tsx` to handle the global HTML shell, 
+   custom fonts (Geist), and navigation wrappers.
+2. Shared Components: Build the Header (with mobile hamburger menu) and 
+   the Footer.
+3. Assets: Add background textures, generate project preview images, and 
+   design the custom `og-image.jpg` banner.
+
+PHASE 3: 3D Engineering (The Wow Factor)
+1. Build `AICoreCanvas.tsx`: Abstract the Three.js logic to keep the main 
+   page clean.
+2. Implement Geometries: Add a SphereBufferGeometry for the core, Torus 
+   for the rings, and PointsMaterial for the floating particles.
+3. Lighting: Add PointLights and AmbientLights to create the neon glow.
+
+PHASE 4: Page Assembly & Content
+1. Build `page.tsx`: Combine the Hero Section (Text + 3D Core).
+2. Create Sections: Build the Mission, Capabilities/Skills, System Builds, 
+   and Contact modules as separate React components.
+3. Interactions: Add hover states, dynamic glassmorphism borders, and 
+   the custom floating Cursor Glow.
+
+PHASE 5: The AI Assistant
+1. State Management: Create an array of predefined questions and an 
+   array to hold the conversation history.
+2. UI Design: Build a sliding, absolute-positioned glassmorphism panel.
+3. Logic: When a user clicks a prompt, append their text, show a "typing..." 
+   indicator, wait 1000ms, then append the hardcoded system response.
+
+PHASE 6: Optimization & Polish
+1. Performance: Use `next/dynamic` to lazy-load below-the-fold components 
+   so the initial page loads instantly. Reduce Three.js geometry segments.
+2. Mobile Responsiveness: Audit all CSS grids, padding, and font sizes 
+   using Tailwind's `sm:`, `md:`, `lg:` prefixes.
+3. Accessibility (a11y): Add `aria-live`, `aria-hidden`, `alt` texts, 
+   and high-contrast `focus-visible` rings for keyboard navigation.
+
+PHASE 7: SEO & Discoverability
+1. Metadata: Inject the production domain (`omm-ai-portfolio.vercel.app`) 
+   into layout metadata.
+2. Open Graph: Map the Twitter cards and LinkedIn preview images.
+3. JSON-LD: Add Structured Data so Google recognizes the site as a "Person".
+
+PHASE 8: Deployment
+1. Git Tracking: `git init`, `git add .`, `git commit`.
+2. Remote Push: Connect to GitHub `omm-ai-portfolio` repository.
+3. CI/CD (Vercel): Connect the Vercel dashboard to the GitHub repository. 
+   Every `git push main` now automatically triggers a production build 
+   and deploys the site live to the internet.
+
+========================================================================
+                      END OF DOCUMENTATION
+========================================================================
