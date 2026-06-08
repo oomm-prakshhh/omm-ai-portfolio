@@ -3,269 +3,71 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const TYPING_SPEED = 11;
-const LINE_PAUSE   = 22;
-const SESSION_KEY  = 'omm-terminal-v4';
+const TYPING_SPEED = 12;
+const LINE_PAUSE   = 25;
+const SESSION_KEY  = 'omm-terminal-v3';
+const HISTORY_KEY  = 'omm-cmd-history-v3';
 
-const QUICK_COMMANDS = ['help', 'whoami', 'ls', 'system-status', 'matrix', 'coffee', 'date'];
+// ── Virtual filesystem ────────────────────────────────────────────────────────
+const FS: Record<string, { parent: string; dirs: string[]; files: string[] }> = {
+  '~': {
+    parent: '~',
+    dirs:  ['projects', 'builds', 'skills'],
+    files: ['profile.txt', 'mission.txt', 'skills.log', 'contact.json', 'resume.pdf'],
+  },
+  '~/projects': {
+    parent: '~',
+    dirs:  ['jarvis', 'portfolio', 'chatbot'],
+    files: ['README.md'],
+  },
+  '~/builds': {
+    parent: '~',
+    dirs:  [],
+    files: ['build.log', 'deploy.sh', 'vercel.json'],
+  },
+  '~/skills': {
+    parent: '~',
+    dirs:  [],
+    files: ['ai.log', 'frontend.log', 'backend.log', 'tools.log'],
+  },
+  '~/projects/jarvis': {
+    parent: '~/projects',
+    dirs:  [],
+    files: ['main.py', 'requirements.txt', 'config.json', 'README.md'],
+  },
+  '~/projects/portfolio': {
+    parent: '~/projects',
+    dirs:  ['components', 'app'],
+    files: ['package.json', 'next.config.ts', 'README.md'],
+  },
+  '~/projects/chatbot': {
+    parent: '~/projects',
+    dirs:  [],
+    files: ['index.js', 'server.js', 'config.json', 'README.md'],
+  },
+};
 
-const ALL_COMMANDS = [
+// Global commands always available regardless of cwd
+const GLOBAL_COMMANDS = [
   'help','whoami','pwd','ls','date','uname','clear','version','system-status',
-  'cat profile.txt','cat mission.txt','cat skills.log','cat contact.json',
-  'cat resume.pdf','cat readme.md',
-  'cd projects','cd builds','cd jarvis','cd portfolio','cd chatbot','cd ..','cd ~',
-  'projects','skills','mission','contact','builds','profile','capabilities','timeline',
-  'github','linkedin','resume','open resume','download resume',
+  'skills','mission','profile','timeline','capabilities','projects','builds',
+  'contact','github','linkedin','resume','open resume','download resume',
   'open portfolio','open jarvis','open chatbot',
-  'sudo reveal-secret','hack nasa','coffee','matrix',
+  'cat profile.txt','cat mission.txt','cat skills.log','cat contact.json',
+  'sudo reveal-secret','hack nasa','coffee','matrix','cd ~','cd ..',
 ];
+
+const QUICK_COMMANDS = ['help','whoami','ls','system-status','date','matrix','coffee'];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type LineType   = 'input'|'output'|'error'|'success'|'accent'|'empty'|'matrix';
 type OutputLine = { type: LineType; text: string; instant?: boolean };
-type CmdResult  = { lines: OutputLine[]; effect?: () => void; newPath?: string[] };
-
-type FSFile = { kind: 'file'; content: OutputLine[] };
-type FSDir  = { kind: 'dir';  children: Record<string, FSNode> };
-type FSNode = FSFile | FSDir;
-
-// ── Virtual Filesystem ────────────────────────────────────────────────────────
-const ROOT_FS: FSDir = {
-  kind: 'dir',
-  children: {
-    'profile.txt': { kind: 'file', content: [
-      { type:'accent',  text:'  ╔══════════════════════════════════╗' },
-      { type:'accent',  text:'  ║      profile.txt — OMM//AI       ║' },
-      { type:'accent',  text:'  ╚══════════════════════════════════╝' },
-      { type:'empty',   text:'' },
-      { type:'success', text:'  IDENTITY' },
-      { type:'output',  text:'  Name      :  Omm Prakash Sahoo' },
-      { type:'output',  text:'  Handle    :  oomm-prakshhh' },
-      { type:'output',  text:'  Role      :  AI & Web Developer' },
-      { type:'output',  text:'  Class     :  Computer Science Student' },
-      { type:'output',  text:'  Base      :  Odisha, India' },
-      { type:'empty',   text:'' },
-      { type:'success', text:'  CONTACT' },
-      { type:'output',  text:'  Email     :  ommprakashs648@gmail.com' },
-      { type:'output',  text:'  GitHub    :  github.com/oomm-prakshhh' },
-      { type:'output',  text:'  LinkedIn  :  linkedin.com/in/omm-prakash-sahoo' },
-      { type:'empty',   text:'' },
-      { type:'success', text:'  SYSTEM STATUS' },
-      { type:'output',  text:'  Clearance :  SYSTEM ARCHITECT' },
-      { type:'output',  text:'  Online    :  ● ACTIVE' },
-      { type:'output',  text:'  Available :  YES — response < 24h' },
-      { type:'empty',   text:'' },
-    ]},
-    'mission.txt': { kind: 'file', content: [
-      { type:'accent',  text:'  ╔══════════════════════════════════╗' },
-      { type:'accent',  text:'  ║      mission.txt — OMM//AI       ║' },
-      { type:'accent',  text:'  ╚══════════════════════════════════╝' },
-      { type:'empty',   text:'' },
-      { type:'output',  text:'  To engineer intelligent systems that bridge' },
-      { type:'output',  text:'  the gap between human intent and machine' },
-      { type:'output',  text:'  capability — creating experiences that feel' },
-      { type:'output',  text:'  alive, immersive, and purposeful.' },
-      { type:'empty',   text:'' },
-      { type:'success', text:'  CORE DIRECTIVES' },
-      { type:'output',  text:'  01  Build AI-powered applications' },
-      { type:'output',  text:'  02  Create immersive web experiences' },
-      { type:'output',  text:'  03  Advance human-computer interaction' },
-      { type:'output',  text:'  04  Continuously evolve & learn' },
-      { type:'empty',   text:'' },
-      { type:'accent',  text:'  "Code is poetry written for machines,' },
-      { type:'accent',  text:'   but felt by humans."' },
-      { type:'empty',   text:'' },
-    ]},
-    'skills.log': { kind: 'file', content: [
-      { type:'accent',  text:'  ╔══════════════════════════════════╗' },
-      { type:'accent',  text:'  ║      skills.log — OMM//AI        ║' },
-      { type:'accent',  text:'  ╚══════════════════════════════════╝' },
-      { type:'empty',   text:'' },
-      { type:'success', text:'  [LOADED] AI & MACHINE LEARNING' },
-      { type:'output',  text:'  ▸ Python              ████████████  98%' },
-      { type:'output',  text:'  ▸ AI APIs             ███████████░  94%' },
-      { type:'output',  text:'  ▸ Speech Recognition  ██████████░░  88%' },
-      { type:'output',  text:'  ▸ NLP / Prompt Eng    █████████░░░  82%' },
-      { type:'empty',   text:'' },
-      { type:'success', text:'  [LOADED] FRONTEND' },
-      { type:'output',  text:'  ▸ React / Next.js     ████████████  96%' },
-      { type:'output',  text:'  ▸ TypeScript          ███████████░  92%' },
-      { type:'output',  text:'  ▸ Three.js / WebGL    ██████████░░  88%' },
-      { type:'output',  text:'  ▸ CSS / Tailwind      ████████████  97%' },
-      { type:'output',  text:'  ▸ GSAP Animations     █████████░░░  84%' },
-      { type:'empty',   text:'' },
-      { type:'success', text:'  [LOADED] BACKEND & TOOLING' },
-      { type:'output',  text:'  ▸ Node.js             ████████░░░░  78%' },
-      { type:'output',  text:'  ▸ Git & GitHub        ████████████  99%' },
-      { type:'output',  text:'  ▸ Vercel / CI-CD      ███████████░  92%' },
-      { type:'empty',   text:'' },
-    ]},
-    'contact.json': { kind: 'file', content: [
-      { type:'accent',  text:'  // contact.json' },
-      { type:'empty',   text:'' },
-      { type:'accent',  text:'  {' },
-      { type:'success', text:'    "name"      : "Omm Prakash Sahoo",' },
-      { type:'output',  text:'    "role"      : "AI & Web Developer",' },
-      { type:'output',  text:'    "email"     : "ommprakashs648@gmail.com",' },
-      { type:'output',  text:'    "github"    : "github.com/oomm-prakshhh",' },
-      { type:'output',  text:'    "linkedin"  : "linkedin.com/in/omm-prakash-sahoo",' },
-      { type:'output',  text:'    "location"  : "Odisha, India",' },
-      { type:'output',  text:'    "status"    : "ACTIVE",' },
-      { type:'success', text:'    "available" : true,' },
-      { type:'output',  text:'    "response"  : "< 24 hours"' },
-      { type:'accent',  text:'  }' },
-      { type:'empty',   text:'' },
-    ]},
-    'resume.pdf': { kind: 'file', content: [
-      { type:'output', text:'  Attempting to render resume.pdf...' },
-      { type:'error',  text:'  [BINARY] Cannot display PDF in terminal.' },
-      { type:'output', text:'  Use: open resume   — to view in browser' },
-      { type:'output', text:'  Use: download resume — to download' },
-    ]},
-    'projects': { kind: 'dir', children: {
-      'readme.md': { kind: 'file', content: [
-        { type:'accent',  text:'  # projects/README.md' },
-        { type:'empty',   text:'' },
-        { type:'output',  text:'  Active OMM//AI project directories.' },
-        { type:'empty',   text:'' },
-        { type:'success', text:'  PROJECTS' },
-        { type:'accent',  text:'  📁  jarvis/      Voice-controlled AI Assistant' },
-        { type:'accent',  text:'  📁  portfolio/   3D Immersive Portfolio System' },
-        { type:'accent',  text:'  📁  chatbot/     Real-time AI Chatbot Platform' },
-        { type:'empty',   text:'' },
-        { type:'output',  text:'  Navigate: cd jarvis · cd portfolio · cd chatbot' },
-        { type:'empty',   text:'' },
-      ]},
-      'jarvis': { kind: 'dir', children: {
-        'readme.md': { kind: 'file', content: [
-          { type:'accent',  text:'  # JARVIS AI ASSISTANT' },
-          { type:'empty',   text:'' },
-          { type:'output',  text:'  Voice-controlled AI command interface.' },
-          { type:'output',  text:'  Understands natural language, executes' },
-          { type:'output',  text:'  system tasks, and answers queries.' },
-          { type:'empty',   text:'' },
-          { type:'success', text:'  TECH STACK' },
-          { type:'output',  text:'  ▸ Python 3.11' },
-          { type:'output',  text:'  ▸ SpeechRecognition' },
-          { type:'output',  text:'  ▸ pyttsx3 (TTS engine)' },
-          { type:'output',  text:'  ▸ OpenAI / AI APIs' },
-          { type:'output',  text:'  ▸ Custom NLP pipeline' },
-          { type:'empty',   text:'' },
-          { type:'success', text:'  STATUS' },
-          { type:'output',  text:'  Version  :  v1.2.0-stable' },
-          { type:'output',  text:'  Stage    :  ● DEPLOYED' },
-          { type:'output',  text:'  Tests    :  92% coverage' },
-          { type:'output',  text:'  Uptime   :  99.7%' },
-          { type:'empty',   text:'' },
-        ]},
-      }},
-      'portfolio': { kind: 'dir', children: {
-        'readme.md': { kind: 'file', content: [
-          { type:'accent',  text:'  # 3D PORTFOLIO SYSTEM' },
-          { type:'empty',   text:'' },
-          { type:'output',  text:'  Immersive OS-themed portfolio with a 3D' },
-          { type:'output',  text:'  AI core, cinematic boot sequence, and' },
-          { type:'output',  text:'  this interactive terminal interface.' },
-          { type:'empty',   text:'' },
-          { type:'success', text:'  TECH STACK' },
-          { type:'output',  text:'  ▸ Next.js 16.2.2 (Turbopack)' },
-          { type:'output',  text:'  ▸ React 19 + TypeScript' },
-          { type:'output',  text:'  ▸ React Three Fiber + Three.js' },
-          { type:'output',  text:'  ▸ GSAP Animations' },
-          { type:'output',  text:'  ▸ Vercel Edge Network' },
-          { type:'empty',   text:'' },
-          { type:'success', text:'  STATUS' },
-          { type:'output',  text:'  Version  :  v2.0.1-prod' },
-          { type:'output',  text:'  Stage    :  ● ONLINE' },
-          { type:'output',  text:'  Uptime   :  99.9%' },
-          { type:'output',  text:'  URL      :  omm-ai-portfolio.vercel.app' },
-          { type:'empty',   text:'' },
-        ]},
-      }},
-      'chatbot': { kind: 'dir', children: {
-        'readme.md': { kind: 'file', content: [
-          { type:'accent',  text:'  # AI CHATBOT PLATFORM' },
-          { type:'empty',   text:'' },
-          { type:'output',  text:'  Real-time conversational AI with context' },
-          { type:'output',  text:'  awareness, multi-turn dialogue, and' },
-          { type:'output',  text:'  streaming response output.' },
-          { type:'empty',   text:'' },
-          { type:'success', text:'  TECH STACK' },
-          { type:'output',  text:'  ▸ React + JavaScript' },
-          { type:'output',  text:'  ▸ Node.js REST API' },
-          { type:'output',  text:'  ▸ OpenAI / AI APIs' },
-          { type:'output',  text:'  ▸ WebSocket (streaming)' },
-          { type:'empty',   text:'' },
-          { type:'success', text:'  STATUS' },
-          { type:'output',  text:'  Version  :  v0.8.5-dev' },
-          { type:'output',  text:'  Stage    :  ● IN DEVELOPMENT' },
-          { type:'output',  text:'  ETA      :  Q3 2026' },
-          { type:'empty',   text:'' },
-        ]},
-      }},
-    }},
-    'builds': { kind: 'dir', children: {
-      'readme.md': { kind: 'file', content: [
-        { type:'accent',  text:'  # builds/README.md' },
-        { type:'empty',   text:'' },
-        { type:'output',  text:'  Deployed and active build records.' },
-        { type:'empty',   text:'' },
-        { type:'success', text:'  [BLD-01] jarvis/     ● DEPLOYED    v1.2.0' },
-        { type:'success', text:'  [BLD-02] chatbot/    ● IN DEV      v0.8.5' },
-        { type:'success', text:'  [BLD-03] portfolio/  ● ONLINE      v2.0.1' },
-        { type:'empty',   text:'' },
-        { type:'output',  text:'  cd ../projects — for detailed project info' },
-        { type:'empty',   text:'' },
-      ]},
-    }},
-  },
-};
-
-// ── FS helpers ────────────────────────────────────────────────────────────────
-function getNodeAtPath(path: string[]): FSNode | null {
-  let node: FSNode = ROOT_FS;
-  for (const seg of path) {
-    if (node.kind !== 'dir') return null;
-    const child: FSNode = (node as FSDir).children[seg];
-    if (!child) return null;
-    node = child;
-  }
-  return node;
-}
-
-function getPrompt(path: string[]): string {
-  return path.length === 0 ? 'omm@ai:~$' : `omm@ai:~/${path.join('/')}$`;
-}
-
-function fileIcon(name: string): string {
-  const ext = name.split('.').pop() ?? '';
-  const map: Record<string, string> = { txt:'📋', log:'📊', json:'🔧', md:'📑', pdf:'📕' };
-  return map[ext] ?? '📄';
-}
-
-function fileLineType(name: string): LineType {
-  const ext = name.split('.').pop() ?? '';
-  if (ext === 'log')  return 'success';
-  if (ext === 'json') return 'accent';
-  if (ext === 'pdf')  return 'error';
-  return 'output';
-}
-
-function lsOutput(dir: FSDir): OutputLine[] {
-  const entries = Object.entries(dir.children);
-  const dirs  = entries.filter(([, v]) => v.kind === 'dir').map(([k]) => k).sort();
-  const files = entries.filter(([, v]) => v.kind === 'file').map(([k]) => k).sort();
-  const lines: OutputLine[] = [{ type:'empty', text:'' }];
-  dirs.forEach(d  => lines.push({ type:'accent', text:`  📁  ${d}/` }));
-  files.forEach(f => lines.push({ type: fileLineType(f), text:`  ${fileIcon(f)}  ${f}` }));
-  lines.push({ type:'empty', text:'' });
-  return lines;
-}
+type CmdResult  = { lines: OutputLine[]; effect?: () => void; newCwd?: string };
 
 // ── Client-safe helpers ───────────────────────────────────────────────────────
 function clientScroll(id: string) {
   if (typeof window === 'undefined') return;
-  document.getElementById(id)?.scrollIntoView({ behavior:'smooth', block:'start' });
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function clientOpen(url: string) {
   if (typeof window === 'undefined') return;
@@ -278,9 +80,9 @@ function getDate() {
   });
 }
 
-// ── Matrix generator ──────────────────────────────────────────────────────────
+// ── Matrix lines ──────────────────────────────────────────────────────────────
 function makeMatrixLines(): OutputLine[] {
-  const pool = '01アイウエカキクケコサシスタチツナニヌネノ▓░▒█│┼╬◈◉';
+  const pool = '01アイウエカキクケコサシスセタチツナニヌネノ▓░▒█│┼╬╫◈◉';
   return Array.from({ length: 15 }, () => {
     const len = 44 + Math.floor(Math.random() * 18);
     let row = '  ';
@@ -289,93 +91,96 @@ function makeMatrixLines(): OutputLine[] {
   });
 }
 
+// ── ls output (context-aware) ─────────────────────────────────────────────────
+function getLsLines(cwd: string): OutputLine[] {
+  const node = FS[cwd];
+  if (!node) return [{ type: 'error', text: `  ls: ${cwd}: No such directory` }];
+  const lines: OutputLine[] = [{ type: 'empty', text: '' }];
+  node.dirs.forEach(d => lines.push({ type: 'success', text: `  📁  ${d}/` }));
+  node.files.forEach(f => {
+    const ext = f.split('.').pop() ?? '';
+    const icon =
+      ext === 'log' ? '📋' : ext === 'json' ? '⚙' : ext === 'md'  ? '📖' :
+      ext === 'pdf' ? '📑' : ext === 'py'   ? '🐍' : ext === 'js'  ? '⚡' :
+      ext === 'sh'  ? '⚡' : ext === 'ts'   ? '⚡' : '📄';
+    lines.push({ type: 'output', text: `  ${icon}  ${f}` });
+  });
+  lines.push({ type: 'empty', text: '' });
+  lines.push({ type: 'accent', text: `  ${node.dirs.length} dir(s), ${node.files.length} file(s)   pwd: ${cwd}` });
+  lines.push({ type: 'empty', text: '' });
+  return lines;
+}
+
+// ── Context-aware tab completions ─────────────────────────────────────────────
+function getCompletions(partial: string, cwd: string): string[] {
+  const lower = partial.toLowerCase();
+  const node = FS[cwd];
+  const dynamic = [
+    ...(node?.dirs.map(d => `cd ${d}`)   ?? []),
+    ...(node?.files.map(f => `cat ${f}`) ?? []),
+    ...(node?.dirs.map(d => `open ${d}`) ?? []),
+  ];
+  return [...new Set([...GLOBAL_COMMANDS, ...dynamic])].filter(
+    c => c.startsWith(lower) && c !== lower
+  );
+}
+
 // ── Command processor ─────────────────────────────────────────────────────────
-function processCommand(raw: string, path: string[]): CmdResult {
-  const trimmed  = raw.trim();
-  const lower    = trimmed.toLowerCase();
-  const parts    = trimmed.split(/\s+/);
-  const verb     = parts[0]?.toLowerCase() ?? '';
-  const argRaw   = parts.slice(1).join(' ').trim();
+function processCommand(raw: string, cwd: string): CmdResult {
+  const cmd = raw.trim().toLowerCase();
 
-  // ── Filesystem-aware commands ─────────────────────────────────────────────
-  if (verb === 'ls') {
-    const node = getNodeAtPath(path);
-    if (!node || node.kind !== 'dir') return { lines:[{ type:'error', text:'  Not a directory.' }] };
-    return { lines: lsOutput(node as FSDir) };
+  // ── cd handling (before switch) ───────────────────────────────────────────
+  if (cmd === 'cd' || cmd === 'cd ~' || cmd === 'cd /' || cmd === 'cd ~/') {
+    return { lines: [], newCwd: '~' };
   }
-
-  if (verb === 'pwd') {
-    const p = path.length === 0 ? '/home/omm' : `/home/omm/${path.join('/')}`;
-    return { lines:[{ type:'output', text:`  ${p}` }] };
+  if (cmd === 'cd ..') {
+    const parent = FS[cwd]?.parent ?? '~';
+    return { lines: [{ type: 'output', text: `  ↑ ${parent}` }], newCwd: parent };
   }
-
-  if (verb === 'cd') {
-    const target = argRaw || '~';
-    if (target === '~' || target === '') {
-      return { lines:[], newPath:[] };
-    }
-    if (target === '..') {
-      if (path.length === 0) return { lines:[{ type:'error', text:'  Already at home directory.' }] };
-      return { lines:[], newPath: path.slice(0, -1) };
-    }
-    const node = getNodeAtPath(path);
-    if (!node || node.kind !== 'dir') return { lines:[{ type:'error', text:`  cd: not in a directory` }] };
-    const child = (node as FSDir).children[target];
-    if (!child) return { lines:[{ type:'error', text:`  cd: ${target}: No such directory` },
-                                { type:'output', text:'  Type "ls" to see available directories.' }] };
-    if (child.kind !== 'dir') return { lines:[{ type:'error', text:`  cd: ${target}: Not a directory` }] };
-    return { lines:[], newPath:[...path, target] };
-  }
-
-  if (verb === 'cat') {
-    const filename = argRaw;
-    if (!filename) return { lines:[{ type:'error', text:'  Usage: cat <filename>' }] };
-    const node = getNodeAtPath(path);
-    if (!node || node.kind !== 'dir') return { lines:[{ type:'error', text:'  Not in a directory.' }] };
-    const file = (node as FSDir).children[filename];
-    if (!file) return { lines:[
-      { type:'error',  text:`  cat: ${filename}: No such file` },
-      { type:'output', text:'  Type "ls" to see available files.' },
+  if (cmd.startsWith('cd ')) {
+    const target = cmd.slice(3).trim();
+    const rel    = cwd === '~' ? `~/${target}` : `${cwd}/${target}`;
+    if (FS[rel])     return { lines: [], newCwd: rel };
+    if (FS[target])  return { lines: [], newCwd: target };
+    return { lines: [
+      { type: 'error',  text: `  cd: ${target}: No such directory` },
+      { type: 'output', text: `  Dirs here: ${FS[cwd]?.dirs.map(d => d + '/').join('  ') || 'none'}` },
     ]};
-    if (file.kind === 'dir') return { lines:[{ type:'error', text:`  cat: ${filename}: Is a directory` }] };
-    return { lines:(file as FSFile).content };
   }
 
-  // ── Static command registry ───────────────────────────────────────────────
-  switch (lower) {
+  switch (cmd) {
 
-    case 'help': return { lines:[
-      { type:'accent',  text:'╔══════════════════════════════════════════╗' },
-      { type:'accent',  text:'║        OMM//AI  COMMAND  REGISTRY        ║' },
-      { type:'accent',  text:'╚══════════════════════════════════════════╝' },
+    // ── help ──
+    case 'help': return { lines: [
+      { type:'accent',  text:'╔════════════════════════════════════════╗' },
+      { type:'accent',  text:'║      OMM//AI  COMMAND  REGISTRY        ║' },
+      { type:'accent',  text:'╚════════════════════════════════════════╝' },
       { type:'empty',   text:'' },
       { type:'success', text:'  FILESYSTEM' },
-      { type:'output',  text:'  ls              → list current directory' },
-      { type:'output',  text:'  pwd             → print working directory' },
-      { type:'output',  text:'  cd <dir>        → change directory' },
-      { type:'output',  text:'  cd ..           → go up one level' },
-      { type:'output',  text:'  cat <file>      → read file contents' },
+      { type:'output',  text:'  pwd · ls · cd <dir> · cd .. · cat <file>' },
       { type:'empty',   text:'' },
       { type:'success', text:'  SYSTEM' },
       { type:'output',  text:'  date · uname · version · system-status · clear' },
       { type:'empty',   text:'' },
       { type:'success', text:'  INFORMATION' },
       { type:'output',  text:'  whoami · skills · mission · profile · timeline' },
-      { type:'output',  text:'  capabilities · projects · resume' },
+      { type:'output',  text:'  capabilities · projects · cat profile.txt' },
+      { type:'output',  text:'  cat mission.txt · cat skills.log · cat contact.json' },
       { type:'empty',   text:'' },
       { type:'success', text:'  NAVIGATION' },
       { type:'output',  text:'  builds · contact · github · linkedin' },
-      { type:'output',  text:'  open portfolio · open jarvis · open chatbot' },
-      { type:'output',  text:'  open resume · download resume' },
+      { type:'output',  text:'  resume · open portfolio · open jarvis · open chatbot' },
       { type:'empty',   text:'' },
       { type:'success', text:'  EASTER EGGS  🥚' },
       { type:'output',  text:'  sudo reveal-secret · hack nasa · coffee · matrix' },
       { type:'empty',   text:'' },
       { type:'accent',  text:'  TAB autocomplete  ↑↓ history  ENTER run' },
+      { type:'accent',  text:'  Try: cd projects → ls → open jarvis' },
       { type:'empty',   text:'' },
     ]};
 
-    case 'whoami': return { lines:[
+    // ── whoami ──
+    case 'whoami': return { lines: [
       { type:'empty',   text:'' },
       { type:'accent',  text:'  ██████  ███    ███  ███    ███' },
       { type:'accent',  text:'  ██  ██  ████  ████  ████  ████' },
@@ -387,24 +192,133 @@ function processCommand(raw: string, path: string[]): CmdResult {
       { type:'output',  text:'  STATUS  →  ● SYSTEMS ONLINE' },
       { type:'output',  text:'  BASE    →  Odisha, India' },
       { type:'output',  text:'  FOCUS   →  Intelligent Systems & Immersive UX' },
-      { type:'empty',   text:'' },
-      { type:'accent',  text:'  Tip: cat profile.txt — full dossier' },
+      { type:'output',  text:'  CLASS   →  Computer Science Student' },
       { type:'empty',   text:'' },
     ]};
 
-    case 'date': return { lines:[
+    // ── pwd ──
+    case 'pwd': return { lines: [
+      { type:'output', text: cwd === '~'
+          ? '  /home/omm'
+          : `  /home/omm/${cwd.slice(2)}` },
+    ]};
+
+    // ── ls ──
+    case 'ls': return { lines: getLsLines(cwd) };
+
+    // ── date ──
+    case 'date': return { lines: [
       { type:'output', text:`  ${getDate()}` },
-      { type:'accent', text:'  IST (UTC+5:30) · OMM//AI System Clock' },
+      { type:'accent', text:'  IST (UTC+5:30) | OMM//AI System Clock' },
     ]};
 
-    case 'uname': return { lines:[
+    // ── uname ──
+    case 'uname': return { lines: [
       { type:'output', text:'  OMM//AI OS v2.0.1-prod' },
-      { type:'output', text:'  Kernel : OMM-AI-CORE/2.0.1' },
-      { type:'output', text:'  Arch   : WebAssembly / JavaScript / AI' },
-      { type:'output', text:'  Build  : Next.js 16 · React 19 · Three.js' },
+      { type:'output', text:'  Kernel: OMM-AI-CORE/2.0.1' },
+      { type:'output', text:'  Arch:   WebAssembly / JavaScript / AI' },
+      { type:'output', text:'  Build:  Next.js 16 · React 19 · Three.js' },
     ]};
 
-    case 'skills': return { lines:[
+    // ── cat profile.txt ──
+    case 'cat profile.txt': return { lines: [
+      { type:'accent',  text:'  ╔══ /home/omm/profile.txt ══╗' },
+      { type:'empty',   text:'' },
+      { type:'success', text:'  PROFILE_ID  →  OPS-2004-AI' },
+      { type:'output',  text:'  NAME        →  Omm Prakash Sahoo' },
+      { type:'output',  text:'  ROLE        →  AI & Web Developer' },
+      { type:'output',  text:'  LOCATION    →  Odisha, India' },
+      { type:'output',  text:'  EMAIL       →  ommprakashs648@gmail.com' },
+      { type:'output',  text:'  GITHUB      →  github.com/oomm-prakshhh' },
+      { type:'output',  text:'  PORTFOLIO   →  omm-ai-portfolio.vercel.app' },
+      { type:'empty',   text:'' },
+      { type:'success', text:'  EXPERTISE' },
+      { type:'output',  text:'  → AI/ML Systems Development' },
+      { type:'output',  text:'  → Full Stack Web Development' },
+      { type:'output',  text:'  → 3D Graphics & WebGL (Three.js)' },
+      { type:'output',  text:'  → Immersive UI/UX Engineering' },
+      { type:'empty',   text:'' },
+      { type:'output',  text:'  CLEARANCE   →  SYSTEM ARCHITECT' },
+      { type:'output',  text:'  STATUS      →  ● ONLINE' },
+      { type:'empty',   text:'' },
+      { type:'accent',  text:'  ╚══════════════════════════╝' },
+    ]};
+
+    // ── cat mission.txt ──
+    case 'cat mission.txt': return { lines: [
+      { type:'accent',  text:'  ╔══ /home/omm/mission.txt ══╗' },
+      { type:'empty',   text:'' },
+      { type:'output',  text:'  To engineer intelligent systems that bridge' },
+      { type:'output',  text:'  the gap between human intent and machine' },
+      { type:'output',  text:'  capability — creating experiences that feel' },
+      { type:'output',  text:'  alive, immersive, and purposeful.' },
+      { type:'empty',   text:'' },
+      { type:'success', text:'  DIRECTIVES' },
+      { type:'output',  text:'  01 → Build AI-powered applications' },
+      { type:'output',  text:'  02 → Create immersive web experiences' },
+      { type:'output',  text:'  03 → Advance human-computer interaction' },
+      { type:'output',  text:'  04 → Continuously evolve & learn' },
+      { type:'output',  text:'  05 → Ship products that make a difference' },
+      { type:'empty',   text:'' },
+      { type:'accent',  text:'  STATUS: MISSION ACTIVE ◈' },
+      { type:'empty',   text:'' },
+      { type:'accent',  text:'  ╚═══════════════════════════╝' },
+    ]};
+
+    // ── cat skills.log ──
+    case 'cat skills.log': return { lines: [
+      { type:'accent',  text:'  ╔══ /home/omm/skills.log ══╗' },
+      { type:'empty',   text:'' },
+      { type:'success', text:'  [AI & MACHINE LEARNING]' },
+      { type:'output',  text:'  Python · AI APIs · Speech Recognition' },
+      { type:'output',  text:'  NLP · Prompt Engineering · LLM Integration' },
+      { type:'empty',   text:'' },
+      { type:'success', text:'  [FRONTEND]' },
+      { type:'output',  text:'  JavaScript · TypeScript · React · Next.js' },
+      { type:'output',  text:'  Three.js · R3F · GSAP · Tailwind · HTML · CSS' },
+      { type:'empty',   text:'' },
+      { type:'success', text:'  [BACKEND & TOOLS]' },
+      { type:'output',  text:'  Node.js · REST APIs · Git · GitHub · Vercel' },
+      { type:'empty',   text:'' },
+      { type:'success', text:'  [3D & GRAPHICS]' },
+      { type:'output',  text:'  Three.js · WebGL · Shaders · R3F · Blender' },
+      { type:'empty',   text:'' },
+      { type:'accent',  text:'  LAST UPDATED: 2026.06' },
+      { type:'accent',  text:'  ╚══════════════════════════╝' },
+    ]};
+
+    // ── cat contact.json ──
+    case 'cat contact.json': return { lines: [
+      { type:'accent',  text:'  ╔══ /home/omm/contact.json ══╗' },
+      { type:'empty',   text:'' },
+      { type:'output',  text:'  {' },
+      { type:'success', text:'    "email":     "ommprakashs648@gmail.com",' },
+      { type:'success', text:'    "github":    "github.com/oomm-prakshhh",' },
+      { type:'success', text:'    "linkedin":  "linkedin.com/in/omm-prakash-sahoo",' },
+      { type:'success', text:'    "portfolio": "omm-ai-portfolio.vercel.app",' },
+      { type:'output',  text:'    "response":  "<24 hours",' },
+      { type:'output',  text:'    "status":    "● OPEN TO OPPORTUNITIES"' },
+      { type:'output',  text:'  }' },
+      { type:'empty',   text:'' },
+      { type:'accent',  text:'  ╚══════════════════════════════╝' },
+    ]};
+
+    case 'cat resume.pdf': return { lines: [
+      { type:'error',  text:'  cat: resume.pdf: Binary file — cannot display.' },
+      { type:'output', text:'  Use: open resume  or  download resume' },
+    ]};
+
+    case 'cat readme.md': return { lines: [
+      { type:'accent',  text:'  # OMM//AI Portfolio' },
+      { type:'empty',   text:'' },
+      { type:'output',  text:'  Futuristic AI-themed portfolio built with' },
+      { type:'output',  text:'  Next.js, Three.js, and React Three Fiber.' },
+      { type:'empty',   text:'' },
+      { type:'output',  text:'  GitHub: github.com/oomm-prakshhh/omm-ai-portfolio' },
+    ]};
+
+    // ── skills ──
+    case 'skills': return { lines: [
       { type:'accent',  text:'╔══ TECHNICAL STACK ══╗' },
       { type:'empty',   text:'' },
       { type:'success', text:'  AI & ML' },
@@ -416,78 +330,104 @@ function processCommand(raw: string, path: string[]): CmdResult {
       { type:'success', text:'  BACKEND & TOOLS' },
       { type:'output',  text:'  Node.js · Git · GitHub · Vercel' },
       { type:'empty',   text:'' },
-      { type:'accent',  text:'  Tip: cat skills.log — detailed breakdown' },
-      { type:'empty',   text:'' },
+      { type:'accent',  text:'  Tip: cat skills.log for full breakdown' },
+      { type:'accent',  text:'╚═════════════════════╝' },
     ]};
 
-    case 'mission': return { lines:[
+    // ── mission ──
+    case 'mission': return { lines: [
       { type:'output',  text:'  To engineer intelligent systems that bridge' },
       { type:'output',  text:'  the gap between human intent and machine' },
-      { type:'output',  text:'  capability — alive, immersive, purposeful.' },
+      { type:'output',  text:'  capability — creating experiences that feel' },
+      { type:'output',  text:'  alive, immersive, and purposeful.' },
       { type:'empty',   text:'' },
-      { type:'accent',  text:'  Tip: cat mission.txt — full manifesto' },
-      { type:'empty',   text:'' },
+      { type:'accent',  text:'  Tip: cat mission.txt for full details' },
     ]};
 
-    case 'projects': return { lines:[
+    // ── projects ──
+    case 'projects': return { lines: [
       { type:'accent',  text:'╔══ PROJECT MANIFEST ══╗' },
       { type:'empty',   text:'' },
-      { type:'success', text:'  [01] JARVIS      ● DEPLOYED   →  cd projects/jarvis' },
-      { type:'success', text:'  [02] CHATBOT     ● IN DEV     →  cd projects/chatbot' },
-      { type:'success', text:'  [03] PORTFOLIO   ● ONLINE     →  cd projects/portfolio' },
+      { type:'success', text:'  [01] JARVIS AI ASSISTANT' },
+      { type:'output',  text:'       Python · Speech Recognition · AI APIs' },
+      { type:'output',  text:'       Status: ● DEPLOYED  →  open jarvis' },
       { type:'empty',   text:'' },
-      { type:'accent',  text:'  Or: cd projects  then  ls  then  cat readme.md' },
+      { type:'success', text:'  [02] AI CHATBOT PLATFORM' },
+      { type:'output',  text:'       React · Node.js · AI APIs' },
+      { type:'output',  text:'       Status: ● IN DEV    →  open chatbot' },
       { type:'empty',   text:'' },
+      { type:'success', text:'  [03] 3D PORTFOLIO SYSTEM' },
+      { type:'output',  text:'       Next.js · Three.js · React Three Fiber' },
+      { type:'output',  text:'       Status: ● ONLINE    →  open portfolio' },
+      { type:'empty',   text:'' },
+      { type:'accent',  text:'  Tip: cd projects → ls → open <name>' },
+      { type:'accent',  text:'╚═══════════════════════╝' },
     ]};
 
+    // ── builds ──
     case 'builds': return {
-      lines:[
+      lines: [
         { type:'accent', text:'  [Navigating to System Builds...]' },
-        { type:'output', text:'  Try: open portfolio · open jarvis · open chatbot' },
+        { type:'output', text:'  open portfolio · open jarvis · open chatbot' },
       ],
       effect: () => setTimeout(() => clientScroll('builds'), 200),
     };
 
+    // ── open commands ──
     case 'open portfolio': return {
-      lines:[
+      lines: [
         { type:'success', text:'  ● Accessing: 3D Portfolio System' },
-        { type:'output',  text:'  Stack: Next.js · Three.js · React Three Fiber' },
+        { type:'output',  text:'  Stack:  Next.js · Three.js · React Three Fiber' },
         { type:'output',  text:'  Status: ● ONLINE  v2.0.1-prod' },
-        { type:'accent',  text:'  [Navigating to project...]' },
+        { type:'output',  text:'  URL:    omm-ai-portfolio.vercel.app' },
+        { type:'accent',  text:'  [Scrolling to project...]' },
       ],
       effect: () => setTimeout(() => clientScroll('builds'), 200),
     };
 
     case 'open jarvis': return {
-      lines:[
+      lines: [
         { type:'success', text:'  ● Accessing: JARVIS AI Assistant' },
-        { type:'output',  text:'  Stack: Python · Speech Recognition · AI APIs' },
+        { type:'output',  text:'  Stack:  Python · Speech Recognition · AI APIs' },
         { type:'output',  text:'  Status: ● DEPLOYED  v1.2.0-stable' },
-        { type:'accent',  text:'  [Navigating to project...]' },
+        { type:'output',  text:'  Path:   ~/projects/jarvis' },
+        { type:'accent',  text:'  [Scrolling to project...]' },
       ],
       effect: () => setTimeout(() => clientScroll('builds'), 200),
     };
 
     case 'open chatbot': return {
-      lines:[
+      lines: [
         { type:'success', text:'  ● Accessing: AI Chatbot Platform' },
-        { type:'output',  text:'  Stack: React · Node.js · AI APIs' },
+        { type:'output',  text:'  Stack:  React · Node.js · AI APIs' },
         { type:'output',  text:'  Status: ● IN DEVELOPMENT  v0.8.5-dev' },
-        { type:'accent',  text:'  [Navigating to project...]' },
+        { type:'output',  text:'  Path:   ~/projects/chatbot' },
+        { type:'accent',  text:'  [Scrolling to project...]' },
       ],
       effect: () => setTimeout(() => clientScroll('builds'), 200),
     };
 
+    // ── resume ──
+    case 'resume':
     case 'open resume':
-    case 'download resume':
-    case 'resume': return { lines:[
-      { type:'output', text:'  Locating resume.pdf on CDN...' },
-      { type:'error',  text:'  [404] Resume not yet deployed.' },
-      { type:'output', text:'  Contact: ommprakashs648@gmail.com to request a copy.' },
+    case 'download resume': return { lines: [
+      { type:'accent',  text:'  ╔══ RESUME.PDF ══╗' },
+      { type:'empty',   text:'' },
+      { type:'output',  text:'  Name: Omm Prakash Sahoo' },
+      { type:'output',  text:'  Role: AI & Web Developer' },
+      { type:'empty',   text:'' },
+      { type:'error',   text:'  [STATUS] PDF not yet deployed to CDN.' },
+      { type:'empty',   text:'' },
+      { type:'success', text:'  REQUEST VIA:' },
+      { type:'output',  text:'  → ommprakashs648@gmail.com' },
+      { type:'output',  text:'  → linkedin.com/in/omm-prakash-sahoo' },
+      { type:'empty',   text:'' },
+      { type:'accent',  text:'  ╚═════════════════╝' },
     ]};
 
+    // ── contact ──
     case 'contact': return {
-      lines:[
+      lines: [
         { type:'accent',  text:'╔══ COMMUNICATION NODES ══╗' },
         { type:'empty',   text:'' },
         { type:'success', text:'  EMAIL    →  ommprakashs648@gmail.com' },
@@ -495,21 +435,23 @@ function processCommand(raw: string, path: string[]): CmdResult {
         { type:'success', text:'  LINKEDIN →  linkedin.com/in/omm-prakash-sahoo' },
         { type:'empty',   text:'' },
         { type:'output',  text:'  Response time: <24h' },
-        { type:'output',  text:'  Tip: cat contact.json — machine-readable' },
-        { type:'accent',  text:'  [Navigating to Contact...]' },
+        { type:'accent',  text:'  Tip: cat contact.json for structured data' },
+        { type:'accent',  text:'  [Scrolling to Contact...]' },
       ],
       effect: () => setTimeout(() => clientScroll('contact'), 200),
     };
 
+    // ── profile ──
     case 'profile': return {
-      lines:[
-        { type:'accent', text:'  [Navigating to Developer Profile...]' },
-        { type:'output', text:'  Tip: cat profile.txt — detailed view' },
+      lines: [
+        { type:'accent', text:'  [Scrolling to Developer Profile...]' },
+        { type:'output', text:'  Tip: cat profile.txt for full dossier.' },
       ],
       effect: () => setTimeout(() => clientScroll('about'), 200),
     };
 
-    case 'capabilities': return { lines:[
+    // ── capabilities ──
+    case 'capabilities': return { lines: [
       { type:'accent',  text:'╔══ SYSTEM CAPABILITIES ══╗' },
       { type:'empty',   text:'' },
       { type:'output',  text:'  [████████████] AI Development    98%' },
@@ -521,7 +463,8 @@ function processCommand(raw: string, path: string[]): CmdResult {
       { type:'accent',  text:'╚══════════════════════════╝' },
     ]};
 
-    case 'timeline': return { lines:[
+    // ── timeline ──
+    case 'timeline': return { lines: [
       { type:'accent',  text:'╔══ SYSTEM HISTORY LOG ══╗' },
       { type:'empty',   text:'' },
       { type:'success', text:'  2022  →  First line of code' },
@@ -537,7 +480,8 @@ function processCommand(raw: string, path: string[]): CmdResult {
       { type:'accent',  text:'╚════════════════════════╝' },
     ]};
 
-    case 'system-status': return { lines:[
+    // ── system-status ──
+    case 'system-status': return { lines: [
       { type:'accent',  text:'╔══ SYSTEM DIAGNOSTICS ══╗' },
       { type:'empty',   text:'' },
       { type:'success', text:'  AI CORE         ●  ACTIVE' },
@@ -545,15 +489,16 @@ function processCommand(raw: string, path: string[]): CmdResult {
       { type:'success', text:'  NETWORK         ●  STABLE' },
       { type:'success', text:'  SECURITY        ●  VERIFIED' },
       { type:'success', text:'  DATA STREAMS    ●  CONNECTED' },
-      { type:'success', text:'  FILESYSTEM      ●  MOUNTED' },
+      { type:'success', text:'  UPTIME          ●  99.9%' },
       { type:'empty',   text:'' },
       { type:'output',  text:'  OS      →  OMM//AI v2.0.1-prod' },
-      { type:'output',  text:'  RUNTIME →  Next.js 16 · React 19' },
+      { type:'output',  text:'  RUNTIME →  Next.js 16 · React 19 · Three.js' },
       { type:'empty',   text:'' },
       { type:'accent',  text:'╚════════════════════════╝' },
     ]};
 
-    case 'version': return { lines:[
+    // ── version ──
+    case 'version': return { lines: [
       { type:'accent',  text:'  OMM//AI OPERATING SYSTEM' },
       { type:'output',  text:'  Version  →  2.0.1-prod' },
       { type:'output',  text:'  Build    →  2026.06' },
@@ -562,8 +507,9 @@ function processCommand(raw: string, path: string[]): CmdResult {
       { type:'output',  text:'  Host     →  Vercel Edge Network' },
     ]};
 
+    // ── github ──
     case 'github': return {
-      lines:[
+      lines: [
         { type:'success', text:'  Connecting to GitHub...' },
         { type:'output',  text:'  Repo: github.com/oomm-prakshhh' },
         { type:'accent',  text:'  ● Opening in new tab...' },
@@ -571,8 +517,9 @@ function processCommand(raw: string, path: string[]): CmdResult {
       effect: () => setTimeout(() => clientOpen('https://github.com/oomm-prakshhh'), 200),
     };
 
+    // ── linkedin ──
     case 'linkedin': return {
-      lines:[
+      lines: [
         { type:'success', text:'  Connecting to LinkedIn...' },
         { type:'output',  text:'  Profile: linkedin.com/in/omm-prakash-sahoo' },
         { type:'accent',  text:'  ● Opening in new tab...' },
@@ -580,11 +527,12 @@ function processCommand(raw: string, path: string[]): CmdResult {
       effect: () => setTimeout(() => clientOpen('https://www.linkedin.com/in/omm-prakash-sahoo-a4a0173a4/'), 200),
     };
 
-    case 'clear': return { lines:[{ type:'empty', text:'__CLEAR__' }] };
+    // ── clear ──
+    case 'clear': return { lines: [{ type:'empty', text:'__CLEAR__' }] };
 
     // ── Easter eggs ──────────────────────────────────────────────────────────
     case 'sudo reveal-secret':
-    case 'sudo': return { lines:[
+    case 'sudo': return { lines: [
       { type:'output',  text:'  [SUDO] Escalating privileges...' },
       { type:'empty',   text:'' },
       { type:'success', text:'  ACCESS GRANTED' },
@@ -593,58 +541,68 @@ function processCommand(raw: string, path: string[]): CmdResult {
       { type:'empty',   text:'' },
       { type:'output',  text:'  "The best AI is curiosity."' },
       { type:'empty',   text:'' },
-      { type:'output',  text:'  More precisely: "The best code makes someone' },
-      { type:'output',  text:'   feel something — wonder, delight, or that' },
-      { type:'output',  text:'   quiet satisfaction of a system working' },
-      { type:'output',  text:'   exactly as intended."' },
+      { type:'output',  text:'  More: "The best code makes someone feel' },
+      { type:'output',  text:'   something — wonder, delight, or that quiet' },
+      { type:'output',  text:'   satisfaction of a system working exactly' },
+      { type:'output',  text:'   as intended."' },
       { type:'empty',   text:'' },
       { type:'success', text:'              — Omm Prakash Sahoo' },
       { type:'empty',   text:'' },
       { type:'accent',  text:'  You found the easter egg. Welcome 🌀' },
     ]};
 
-    case 'hack nasa': return { lines:[
-      { type:'output', text:'  Locating NASA servers...' },
+    case 'hack nasa': return { lines: [
+      { type:'output', text:'  Locating nasa.gov servers...' },
       { type:'output', text:'  Bypassing firewall layer 1...' },
       { type:'output', text:'  Bypassing firewall layer 2...' },
       { type:'empty',  text:'' },
       { type:'error',  text:'  ██  ACCESS DENIED  ██' },
-      { type:'error',  text:'  Intrusion logged. FBI notified. (Just kidding 😎)' },
+      { type:'error',  text:'  Intrusion attempt logged.' },
+      { type:'error',  text:'  FBI notified. (Just kidding 😎)' },
       { type:'empty',  text:'' },
       { type:'accent', text:'  Nice try. Build cool things instead 🚀' },
     ]};
 
-    case 'coffee': return { lines:[
+    case 'coffee': return { lines: [
       { type:'output',  text:'  ☕  Brewing system coffee...' },
       { type:'output',  text:'  ████████████████  100%' },
       { type:'empty',   text:'' },
       { type:'success', text:'  ☕ System energy restored +100' },
-      { type:'accent',  text:'  AI core running at peak capacity.' },
-      { type:'output',  text:'  Fun fact: This portfolio runs on coffee & code.' },
+      { type:'accent',  text:'  AI running at peak capacity.' },
+      { type:'output',  text:'  Fun fact: Built on coffee & code.' },
     ]};
 
-    case 'matrix': {
-      return { lines:[
-        { type:'empty',   text:'' },
-        ...makeMatrixLines(),
-        { type:'empty',   text:'' },
-        { type:'accent',  text:'  Wake up, Neo...', instant:true },
-        { type:'accent',  text:'  Follow the cyan rabbit. 🐇', instant:true },
-        { type:'success', text:'  The Matrix has you.', instant:true },
-        { type:'empty',   text:'' },
-      ]};
-    }
+    case 'matrix': return { lines: [
+      { type:'empty',   text:'' },
+      ...makeMatrixLines(),
+      { type:'empty',   text:'' },
+      { type:'accent',  text:'  Wake up, Neo...', instant: true },
+      { type:'accent',  text:'  Follow the cyan rabbit. 🐇', instant: true },
+      { type:'success', text:'  The Matrix has you.', instant: true },
+      { type:'empty',   text:'' },
+    ]};
 
-    case '': return { lines:[] };
+    case '': return { lines: [] };
 
+    // ── default ──────────────────────────────────────────────────────────────
     default: {
-      if (verb === 'open') return { lines:[
-        { type:'error',  text:`  open: "${argRaw}": not found` },
-        { type:'output', text:'  Try: open portfolio · open jarvis · open chatbot · open resume' },
-      ]};
-      return { lines:[
-        { type:'error',  text:`  command not found: ${trimmed}` },
-        { type:'output', text:'  Type "help" for all commands. TAB to autocomplete.' },
+      if (cmd.startsWith('cat ')) {
+        const file = cmd.slice(4).trim();
+        return { lines: [
+          { type:'error',  text:`  cat: ${file}: No such file or no content defined` },
+          { type:'output', text:'  Readable: profile.txt · mission.txt · skills.log · contact.json' },
+        ]};
+      }
+      if (cmd.startsWith('open ')) {
+        return { lines: [
+          { type:'error',  text:`  open: "${cmd.slice(5)}": not found` },
+          { type:'output', text:'  Try: open portfolio · open jarvis · open chatbot · open resume' },
+        ]};
+      }
+      return { lines: [
+        { type:'error',  text:`  command not found: ${raw.trim()}` },
+        { type:'output', text:'  Type "help" for all commands.' },
+        { type:'output', text:'  Press TAB to autocomplete.' },
       ]};
     }
   }
@@ -659,12 +617,12 @@ function TerminalLine({ line, isTyping }: { line: OutputLine; isTyping?: boolean
     success: 'text-emerald-400',
     accent:  'text-cyan-400',
     empty:   'h-[4px]',
-    matrix:  'text-cyan-500 opacity-70',
+    matrix:  'text-cyan-500',
   };
   const glow: Partial<Record<string, React.CSSProperties>> = {
-    accent:  { textShadow:'0 0 8px rgba(34,211,238,0.45)' },
-    matrix:  { textShadow:'0 0 5px rgba(34,211,238,0.55)' },
-    success: { textShadow:'0 0 6px rgba(52,211,153,0.25)' },
+    accent:  { textShadow: '0 0 8px rgba(34,211,238,0.45)' },
+    matrix:  { textShadow: '0 0 5px rgba(34,211,238,0.55)', opacity: 0.75 },
+    success: { textShadow: '0 0 6px rgba(52,211,153,0.3)' },
   };
   return (
     <div
@@ -675,7 +633,7 @@ function TerminalLine({ line, isTyping }: { line: OutputLine; isTyping?: boolean
       {isTyping && (
         <span
           className="inline-block w-[6px] h-[11px] bg-cyan-400 ml-0.5 align-middle"
-          style={{ animation:'blink 0.8s step-end infinite' }}
+          style={{ animation: 'blink 0.8s step-end infinite' }}
           aria-hidden="true"
         />
       )}
@@ -685,16 +643,15 @@ function TerminalLine({ line, isTyping }: { line: OutputLine; isTyping?: boolean
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function TerminalSection() {
-  const [history,     setHistory    ] = useState<OutputLine[]>([]);
-  const [typingLine,  setTypingLine ] = useState<OutputLine | null>(null);
-  const [input,       setInput      ] = useState('');
-  const [cmdHistory,  setCmdHistory ] = useState<string[]>([]);
-  const [currentPath, setCurrentPath] = useState<string[]>([]);
-  const [visible,     setVisible    ] = useState(false);
-  const [booted,      setBooted     ] = useState(false);
+  const [cwd,        setCwd       ] = useState('~');
+  const [history,    setHistory   ] = useState<OutputLine[]>([]);
+  const [typingLine, setTypingLine] = useState<OutputLine | null>(null);
+  const [input,      setInput     ] = useState('');
+  const [cmdHistory, setCmdHistory] = useState<string[]>([]);
+  const [visible,    setVisible   ] = useState(false);
+  const [booted,     setBooted    ] = useState(false);
 
   const histIdxRef    = useRef(-1);
-  const currentPathRef= useRef<string[]>([]);
   const outputRef     = useRef<HTMLDivElement>(null);
   const inputRef      = useRef<HTMLInputElement>(null);
   const sectionRef    = useRef<HTMLElement>(null);
@@ -702,11 +659,26 @@ export default function TerminalSection() {
   const timerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRef     = useRef(false);
   const onCompleteRef = useRef<(() => void) | null>(null);
+  // Keep cwd in a ref so runCmd stays stable but always sees latest cwd
+  const cwdRef        = useRef(cwd);
+  useEffect(() => { cwdRef.current = cwd; }, [cwd]);
 
-  // Keep ref in sync with state
-  useEffect(() => { currentPathRef.current = currentPath; }, [currentPath]);
+  // ── Load persistent command history after hydration ───────────────────────
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(HISTORY_KEY) || '[]');
+      if (Array.isArray(saved) && saved.length > 0) setCmdHistory(saved);
+    } catch {}
+  }, []);
 
-  // ── Auto-scroll ───────────────────────────────────────────────────────────
+  // ── Persist command history ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!cmdHistory.length) return;
+    try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(cmdHistory.slice(0, 50))); }
+    catch {}
+  }, [cmdHistory]);
+
+  // ── Auto-scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight;
   }, [history, typingLine]);
@@ -738,7 +710,7 @@ export default function TerminalSection() {
       }
       if (next.instant || next.type === 'empty' || !next.text) {
         setHistory(prev => [...prev, next]);
-        timerRef.current = setTimeout(tick, next.instant ? 38 : LINE_PAUSE);
+        timerRef.current = setTimeout(tick, next.instant ? 40 : LINE_PAUSE);
         return;
       }
       let i = 0;
@@ -771,11 +743,11 @@ export default function TerminalSection() {
   // ── Core command runner ───────────────────────────────────────────────────
   const runCmd = useCallback((raw: string) => {
     flushTyping();
-    const path    = currentPathRef.current;
-    const trimmed = raw.trim();
-    const prompt  = getPrompt(path);
-    const echo: OutputLine = { type:'input', text:`${prompt} ${trimmed}` };
-    const { lines, effect, newPath } = processCommand(trimmed, path);
+    const trimmed     = raw.trim();
+    const currentCwd  = cwdRef.current;
+    const currentPrompt = `omm@ai:${currentCwd}$`;
+    const echo: OutputLine = { type: 'input', text: `${currentPrompt} ${trimmed}` };
+    const { lines, effect, newCwd } = processCommand(trimmed, currentCwd);
 
     if (lines[0]?.text === '__CLEAR__') { setHistory([]); return; }
 
@@ -784,18 +756,13 @@ export default function TerminalSection() {
       setCmdHistory(prev => [trimmed, ...prev.slice(0, 49)]);
       histIdxRef.current = -1;
     }
-    if (newPath !== undefined) {
-      setCurrentPath(newPath);
-      currentPathRef.current = newPath;
-    }
-    if (lines.length > 0) {
-      pendingRef.current = [...lines];
-      processQueue();
-    }
+    if (newCwd !== undefined) setCwd(newCwd);
+    pendingRef.current = [...lines];
+    processQueue();
     if (effect) effect();
   }, [flushTyping, processQueue]);
 
-  // ── Execute from input ────────────────────────────────────────────────────
+  // ── Execute from input field ──────────────────────────────────────────────
   const executeInput = useCallback(() => {
     const val = input;
     setInput('');
@@ -818,8 +785,8 @@ export default function TerminalSection() {
         { type:'accent',  text:'║          OMM//AI  TERMINAL v2.0           ║' },
         { type:'accent',  text:'╚═══════════════════════════════════════════╝' },
         { type:'empty',   text:'' },
-        { type:'success', text:'  ● SESSION RESTORED — filesystem mounted.' },
-        { type:'output',  text:'  Type "help" or "ls" to explore.' },
+        { type:'success', text:'  ● SESSION RESTORED — terminal ready.' },
+        { type:'output',  text:'  Type "help" for available commands.' },
         { type:'empty',   text:'' },
       ]);
       return;
@@ -835,19 +802,16 @@ export default function TerminalSection() {
       { type:'input',   text:'root@omm-ai:~$ ./init_terminal.sh' },
       { type:'output',  text:'booting terminal interface...' },
       { type:'output',  text:'loading user profile...' },
-      { type:'output',  text:'mounting virtual filesystem...' },
       { type:'output',  text:'verifying access credentials...' },
       { type:'output',  text:'syncing system data...' },
       { type:'empty',   text:'' },
-      { type:'success', text:'● filesystem mounted at /home/omm' },
       { type:'success', text:'● terminal ready.' },
       { type:'empty',   text:'' },
     ];
 
     onCompleteRef.current = () => {
-      const path = currentPathRef.current;
-      const echo: OutputLine = { type:'input', text:`${getPrompt(path)} help` };
-      const { lines } = processCommand('help', path);
+      const { lines } = processCommand('help', '~');
+      const echo: OutputLine = { type: 'input', text: 'omm@ai:~$ help' };
       setHistory(prev => [...prev, echo]);
       pendingRef.current = [...lines];
       processQueue();
@@ -875,67 +839,26 @@ export default function TerminalSection() {
       e.preventDefault();
       const lower = input.toLowerCase().trim();
       if (!lower) return;
-
-      const path = currentPathRef.current;
-      const dirNode = getNodeAtPath(path);
-      const curDir = dirNode?.kind === 'dir' ? (dirNode as FSDir) : null;
-
-      // Smart cd completion
-      if (lower.startsWith('cd ')) {
-        const partial = lower.slice(3);
-        const dirs = curDir
-          ? Object.entries(curDir.children)
-              .filter(([k, v]) => v.kind === 'dir' && k.startsWith(partial))
-              .map(([k]) => k)
-          : [];
-        if (dirs.length === 1) { setInput(`cd ${dirs[0]}`); return; }
-        if (dirs.length > 1) {
-          flushTyping();
-          setHistory(prev => [...prev,
-            { type:'output', text:`  Directories:` },
-            ...dirs.map(d => ({ type:'accent' as LineType, text:`  → ${d}/` })),
-            { type:'empty', text:'' },
-          ]);
-          return;
-        }
-      }
-
-      // Smart cat completion
-      if (lower.startsWith('cat ')) {
-        const partial = lower.slice(4);
-        const files = curDir
-          ? Object.entries(curDir.children)
-              .filter(([k, v]) => v.kind === 'file' && k.startsWith(partial))
-              .map(([k]) => k)
-          : [];
-        if (files.length === 1) { setInput(`cat ${files[0]}`); return; }
-        if (files.length > 1) {
-          flushTyping();
-          setHistory(prev => [...prev,
-            { type:'output', text:`  Files:` },
-            ...files.map(f => ({ type: fileLineType(f) as LineType, text:`  ${fileIcon(f)} ${f}` })),
-            { type:'empty', text:'' },
-          ]);
-          return;
-        }
-      }
-
-      // Static command completion
-      const matches = ALL_COMMANDS.filter(c => c.startsWith(lower) && c !== lower);
+      const matches = getCompletions(lower, cwd);
       if (matches.length === 1) {
         setInput(matches[0]);
       } else if (matches.length > 1) {
         flushTyping();
-        setHistory(prev => [...prev,
+        const matchLines: OutputLine[] = [
           { type:'output', text:`  Matches for "${lower}":` },
-          ...matches.map(m => ({ type:'accent' as LineType, text:`  → ${m}` })),
+          ...matches.slice(0, 8).map(m => ({ type:'accent' as LineType, text:`  → ${m}` })),
+          ...(matches.length > 8
+            ? [{ type:'output' as LineType, text:`  ... and ${matches.length - 8} more` }]
+            : []),
           { type:'empty', text:'' },
-        ]);
+        ];
+        setHistory(prev => [...prev, ...matchLines]);
       }
     }
-  }, [executeInput, input, cmdHistory, flushTyping]);
+  }, [executeInput, input, cmdHistory, cwd, flushTyping]);
 
-  const prompt = getPrompt(currentPath);
+  // Computed prompt — updates reactively with cwd
+  const prompt = `omm@ai:${cwd}$`;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -945,35 +868,39 @@ export default function TerminalSection() {
       aria-labelledby="terminal-heading"
       className="relative w-full bg-black overflow-hidden py-20 sm:py-28 border-t border-zinc-900"
     >
+      {/* Glows */}
       <div aria-hidden="true" className="pointer-events-none absolute top-0 left-1/3 w-[600px] h-[600px] rounded-full bg-cyan-600/5 blur-[150px]" />
       <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-1/3 w-[400px] h-[400px] rounded-full bg-blue-600/5 blur-[120px]" />
       <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff02_1px,transparent_1px),linear-gradient(to_bottom,#ffffff02_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
 
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        {/* Header */}
+        {/* Section header */}
         <div className={`mb-10 sm:mb-12 transition-all duration-700 ease-out ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
           <p className="text-[10px] font-mono tracking-[0.5em] text-cyan-400 mb-4">{'// TERMINAL_INTERFACE'}</p>
           <h2 id="terminal-heading" className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-4">
             Interactive{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">OS Terminal.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+              OS Terminal.
+            </span>
           </h2>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 sm:gap-6">
             <div className="w-12 h-px bg-cyan-500/50 shrink-0" />
             <p className="text-sm sm:text-lg text-zinc-400 max-w-xl">
-              Virtual filesystem with{' '}
-              <code className="text-cyan-400 font-mono text-xs bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-900/50">ls</code>,{' '}
-              <code className="text-cyan-400 font-mono text-xs bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-900/50">cd</code>, and{' '}
-              <code className="text-cyan-400 font-mono text-xs bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-900/50">cat</code>.{' '}
-              <span className="text-zinc-600">TAB autocompletes.</span>
+              Full CLI with filesystem navigation.{' '}
+              <code className="text-cyan-400 font-mono text-xs bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-900/50">help</code>{' '}
+              · <code className="text-cyan-400 font-mono text-xs bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-900/50">TAB</code>{' '}
+              · <code className="text-cyan-400 font-mono text-xs bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-900/50">cd projects</code>
             </p>
           </div>
         </div>
 
         {/* Terminal window */}
         <div
-          className={`rounded-xl overflow-hidden border border-zinc-800 transition-all duration-700 ease-out delay-150 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-          style={{ boxShadow:'0 0 80px rgba(34,211,238,0.07), inset 0 0 40px rgba(34,211,238,0.02)' }}
+          className={`rounded-xl overflow-hidden border border-zinc-800 transition-all duration-700 ease-out delay-150 ${
+            visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          }`}
+          style={{ boxShadow: '0 0 80px rgba(34,211,238,0.07), inset 0 0 40px rgba(34,211,238,0.02)' }}
           onClick={() => inputRef.current?.focus()}
         >
           {/* Title bar */}
@@ -985,7 +912,7 @@ export default function TerminalSection() {
             </div>
             <div className="flex-1 flex justify-center min-w-0">
               <span className="text-[9px] sm:text-[10px] font-mono tracking-[0.2em] text-zinc-600 select-none truncate">
-                {prompt.replace('$', '')} — OMM//AI TERMINAL v2.0
+                {prompt} — TERMINAL_INTERFACE v2.0
               </span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -995,10 +922,13 @@ export default function TerminalSection() {
           </div>
 
           {/* Scanlines */}
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 rounded-b-xl"
-            style={{ backgroundImage:'repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.03) 3px,rgba(0,0,0,0.03) 4px)' }} />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-10 rounded-b-xl"
+            style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.03) 3px,rgba(0,0,0,0.03) 4px)' }}
+          />
 
-          {/* Output */}
+          {/* Output area */}
           <div
             ref={outputRef}
             role="log"
@@ -1006,18 +936,20 @@ export default function TerminalSection() {
             aria-live="polite"
             aria-relevant="additions"
             className="terminal-output relative bg-zinc-950/95 backdrop-blur-md px-4 sm:px-5 pt-4 pb-2 overflow-y-auto cursor-text"
-            style={{ height:'clamp(300px, 50vh, 480px)' }}
+            style={{ height: 'clamp(300px, 48vh, 460px)' }}
           >
             <div className="space-y-[2px]">
-              {history.map((line, i) => <TerminalLine key={i} line={line} />)}
+              {history.map((line, i) => (
+                <TerminalLine key={i} line={line} />
+              ))}
               {typingLine && <TerminalLine line={typingLine} isTyping />}
             </div>
 
-            {/* Prompt row */}
+            {/* Prompt input row */}
             <div className="flex items-center gap-2 mt-2 mb-1">
               <span
-                className="font-mono text-[11px] sm:text-xs text-cyan-400 shrink-0 select-none whitespace-nowrap"
-                style={{ textShadow:'0 0 8px rgba(34,211,238,0.6)' }}
+                className="font-mono text-[11px] sm:text-xs text-cyan-400 shrink-0 select-none"
+                style={{ textShadow: '0 0 8px rgba(34,211,238,0.6)' }}
                 aria-hidden="true"
               >
                 {prompt}
@@ -1037,8 +969,11 @@ export default function TerminalSection() {
                 className="flex-1 bg-transparent font-mono text-[11px] sm:text-xs text-white outline-none caret-transparent placeholder-zinc-700 min-w-0"
                 placeholder="type a command..."
               />
-              <span className="w-[7px] h-3.5 bg-cyan-400 shrink-0 select-none" aria-hidden="true"
-                style={{ animation:'blink 1s step-end infinite' }} />
+              <span
+                className="w-[7px] h-3.5 bg-cyan-400 shrink-0 select-none"
+                aria-hidden="true"
+                style={{ animation: 'blink 1s step-end infinite' }}
+              />
             </div>
           </div>
 
@@ -1050,18 +985,20 @@ export default function TerminalSection() {
               <span>ENTER RUN</span>
             </div>
             <div className="flex items-center gap-2 text-[9px] sm:text-[10px] font-mono select-none">
-              <span className="text-zinc-600 font-mono">
-                {currentPath.length > 0 ? `~/${currentPath.join('/')}` : '~'}
-              </span>
-              <span className="text-cyan-900">●</span>
+              <span className="text-zinc-600">{cwd}</span>
+              <span className="text-zinc-800">|</span>
               <span className="text-zinc-700">{cmdHistory.length} CMD{cmdHistory.length !== 1 ? 'S' : ''}</span>
+              <span className="text-cyan-800">●</span>
+              <span className="text-cyan-700">SECURE</span>
             </div>
           </div>
         </div>
 
-        {/* Quick command pills */}
+        {/* Quick command pills — horizontal scroll on mobile */}
         <div className={`mt-5 transition-all duration-700 ease-out delay-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <p className="text-[9px] sm:text-[10px] font-mono tracking-widest text-zinc-700 mb-3 select-none">QUICK COMMANDS →</p>
+          <p className="text-[9px] sm:text-[10px] font-mono tracking-widest text-zinc-700 mb-3 select-none">
+            QUICK COMMANDS →
+          </p>
           <div className="quick-pills flex gap-2 overflow-x-auto pb-2">
             {QUICK_COMMANDS.map(qcmd => (
               <button
@@ -1078,10 +1015,11 @@ export default function TerminalSection() {
 
       </div>
 
+      {/* Injected styles */}
       <style>{`
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         .terminal-output::-webkit-scrollbar { width: 6px; }
-        .terminal-output::-webkit-scrollbar-track { background: transparent; }
+        .terminal-output::-webkit-scrollbar-track { background: transparent; border-radius: 3px; }
         .terminal-output::-webkit-scrollbar-thumb { background: rgba(34,211,238,0.18); border-radius: 3px; }
         .terminal-output::-webkit-scrollbar-thumb:hover { background: rgba(34,211,238,0.5); box-shadow: 0 0 8px rgba(34,211,238,0.4); }
         .terminal-output { scrollbar-width: thin; scrollbar-color: rgba(34,211,238,0.18) transparent; }
