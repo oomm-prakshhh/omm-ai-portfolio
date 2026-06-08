@@ -99,16 +99,37 @@ function classifyGeminiError(err: unknown): { message: string; status: number } 
   return { message: `Gemini error: ${msg}`, status: 503 };
 }
 
+// Known placeholder strings — only these are rejected. No format/prefix checks.
+const KNOWN_PLACEHOLDERS = new Set([
+  'your_gemini_api_key_here',
+  'your_api_key_here',
+  'your_api_key',
+  'paste_api_key_here',
+  'your_gemini_api_key',
+  'demo_key',
+  'api_key',
+  'gemini_api_key',
+]);
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
 
-  // Read API key exclusively from environment — no fallbacks, no hardcoded values
+  // Read key exclusively from environment — no hardcoded fallbacks
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey || apiKey.trim() === '') {
-    console.error('[OMM//AI] GEMINI_API_KEY is not set in environment variables.');
+    console.error('[OMM//AI] GEMINI_API_KEY is not set.');
     return NextResponse.json(
-      { error: 'GEMINI_API_KEY is not configured. Add it to Vercel Environment Variables.' },
+      { error: 'GEMINI_API_KEY is not configured. Add it to your Vercel Environment Variables.' },
+      { status: 500 }
+    );
+  }
+
+  // Reject only known placeholder strings — accepts any real key format (AIza..., AQ..., etc.)
+  if (KNOWN_PLACEHOLDERS.has(apiKey.trim().toLowerCase())) {
+    console.error('[OMM//AI] GEMINI_API_KEY is a placeholder string:', apiKey.trim());
+    return NextResponse.json(
+      { error: 'GEMINI_API_KEY is a placeholder. Replace it with your real key from aistudio.google.com/apikey' },
       { status: 500 }
     );
   }
